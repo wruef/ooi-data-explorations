@@ -4,8 +4,7 @@ import numpy as np
 import os
 import xarray as xr
 
-from ooi_data_explorations.common import inputs, m2m_collect, m2m_request, get_deployment_dates, \
-    get_vocabulary, dt64_epoch, update_dataset, ENCODINGS
+from ooi_data_explorations.common import dt64_epoch
 from ooi_data_explorations.uncabled.process_phsen import ATTRS, quality_checks
 
 
@@ -115,62 +114,3 @@ def phsen_streamed(ds):
         ds[v] = ds[v].astype('int32')
 
     return ds
-
-
-def main(argv=None):
-    # setup the input arguments
-    args = inputs(argv)
-    site = args.site
-    node = args.node
-    sensor = args.sensor
-    method = args.method
-    stream = args.stream
-    deploy = args.deploy
-    start = args.start
-    stop = args.stop
-
-    # determine the start and stop times for the data request based on either the deployment number or user entered
-    # beginning and ending dates.
-    if not deploy or (start and stop):
-        return SyntaxError('You must specify either a deployment number or beginning and end dates of interest.')
-    else:
-        if deploy:
-            # Determine start and end dates based on the deployment number
-            start, stop = get_deployment_dates(site, node, sensor, deploy)
-            if not start or not stop:
-                exit_text = ('Deployment dates are unavailable for %s-%s-%s, deployment %02d.' % (site, node, sensor,
-                                                                                                  deploy))
-                raise SystemExit(exit_text)
-
-    # Request the data
-    r = m2m_request(site, node, sensor, method, stream, start, stop)
-    if not r:
-        exit_text = ('Data unavailable for %s-%s-%s, deployment %02d. Check request.' % (site, node, sensor, deploy))
-        raise SystemExit(exit_text)
-
-    # Valid request, start downloading the data
-    if deploy:
-        phsen = m2m_collect(r, ('.*deployment%04d.*PHSEN.*\\.nc$' % deploy))
-    else:
-        phsen = m2m_collect(r, '.*PHSEN.*\\.nc$')
-
-    if not phsen:
-        exit_text = ('Data unavailable for %s-%s-%s. Check request.' % (site, node, sensor))
-        raise SystemExit(exit_text)
-
-    # clean-up and reorganize
-    phsen = phsen_streamed(phsen)
-
-    vocab = get_vocabulary(site, node, sensor)[0]
-    phsen = update_dataset(phsen, vocab['maxdepth'])
-
-    # save the data to disk
-    out_file = os.path.abspath(args.outfile)
-    if not os.path.exists(os.path.dirname(out_file)):
-        os.makedirs(os.path.dirname(out_file))
-
-    phsen.to_netcdf(out_file, mode='w', format='NETCDF4', engine='h5netcdf', encoding=ENCODINGS)
-
-
-if __name__ == '__main__':
-    main()
