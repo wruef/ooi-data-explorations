@@ -9,11 +9,13 @@
 """
 import argparse
 import dateutil.parser as parser
+import numpy as np
 import os
 import pandas as pd
 import pytz
 import re
 import sys
+import xarray as xr
 
 from ooi_data_explorations.common import get_annotations, get_vocabulary, load_gc_thredds, add_annotation_qc_flags
 from ooi_data_explorations.cabled.process_flort import flort_streamed
@@ -73,6 +75,7 @@ def generate_qartod(site, node, sensor, cut_off, platform):
     # create boolean arrays of the data marked as "fail" by the quality checks and generate initial
     # HITL annotations that can be combined with system annotations to create a cleaned up data set
     # prior to calculating the QARTOD test values
+    index = 1
 
     chl_fail = data.estimated_chlorophyll_qc_summary_flag.where(data.estimated_chlorophyll_qc_summary_flag > 3).notnull()
     blocks = identify_blocks(chl_fail[::index], [18, 72])

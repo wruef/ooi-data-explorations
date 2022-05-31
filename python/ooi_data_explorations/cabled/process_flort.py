@@ -6,7 +6,23 @@ import xarray as xr
 
 from ooi_data_explorations.common import dt64_epoch
 from ooi_data_explorations.uncabled.process_flort import ATTRS, quality_checks
+from ooi_data_explorations.qartod.qc_processing import parse_qc
 
+def flort_dropVars(ds):
+    """
+    Drop unused variables from dataset
+    param ds: initial FLORT dataset
+    return: reduced dataset
+    """"
+    # unused variables in streamed FLORT datastream:
+    dropList = ['date_string', 'deployment', 'driver_timestamp', 'id',
+        'ingestion_timestamp','internal_timestamp','port_timestamp',
+        'prefrred_timestamp','provenance','time_string','measurement_wavelength_beta',
+        'measurement_wavelength_cdom','measurement_wavelength_chl']
+
+    ds.reset_coords()
+    ds.drop(dropList)
+    return ds
 
 def flort_streamed(ds):
     """
@@ -20,13 +36,6 @@ def flort_streamed(ds):
         downloaded from OOI via the M2M system
     :return: cleaned up and reorganized data set
     """
-    # drop some of the variables:
-    #   internal_timestamp == superseded by time, redundant so can remove
-    #   measurement_wavelength_* == metadata, move into variable attributes.
-    ds = ds.reset_coords()
-    ds = ds.drop(['internal_timestamp', 'measurement_wavelength_beta',
-                  'measurement_wavelength_cdom', 'measurement_wavelength_chl'])
-
     # lots of renaming here to get a better defined data set with cleaner attributes
     rename = {
         'raw_signal_chl': 'raw_chlorophyll',
